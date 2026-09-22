@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handball Statistik</title>
+<style>
+  :root {
+    --bg: #0f1720;
+    --panel: #17212b;
+    --panel-2: #1e2b38;
+    --accent: #f97316;
+    --accent-2: #22c55e;
+    --danger: #ef4444;
+    --warn: #eab308;
+    --text: #e5e7eb;
+    --text-dim: #94a3b8;
+    --border: #2a3947;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  button {
+    font-family: inherit;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    transition: background 0.15s, transform 0.05s;
+  }
+  button:hover { background: #24333f; }
+  button:active { transform: scale(0.96); }
+  button.primary { background: var(--accent); color: #1a1004; font-weight: 600; border-color: transparent; }
+  button.primary:hover { background: #fb923c; }
+  button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  button.danger:hover { background: rgba(239,68,68,0.12); }
+  button.ghost { background: transparent; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    margin: 0 0 10px 0;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Spieler hinzufügen */
+  .add-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .add-row input {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+  .add-row input[type="text"] { flex: 1; min-width: 140px; }
+  .add-row input[type="number"] { width: 80px; }
+
+  /* Spielerliste */
+  #playerCount {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .player-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+  .player-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .player-number {
+    background: var(--accent);
+    color: #1a1004;
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .player-name {
+    font-weight: 600;
+    flex: 1;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .remove-btn, .edit-btn {
+    background: transparent;
+    color: var(--text-dim);
+    border: none;
+    font-size: 1.1rem;
+    padding: 2px 6px;
+    line-height: 1;
+  }
+  .remove-btn:hover { color: var(--danger); background: transparent; }
+  .edit-btn:hover { color: var(--accent); background: transparent; }
+
+  .edit-row {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+  .edit-row input {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+  .edit-row input[type="text"] { flex: 1; min-width: 0; }
+  .edit-row input[type="number"] { width: 60px; }
+  .edit-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .edit-actions button {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+  }
+  .stat-row:first-of-type { border-top: none; }
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .stat-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stat-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    padding: 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stat-value {
+    min-width: 24px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .stat-tore .stat-value { color: var(--accent-2); }
+  .stat-fehlwurf .stat-value { color: var(--warn); }
+  .stat-technisch .stat-value { color: var(--danger); }
+  .stat-abwehr .stat-value { color: #38bdf8; }
+
+  .empty-hint {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--text-dim); font-weight: 600; }
+  td.num, th.num { text-align: center; }
+  tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
+
+  .footer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  @media (max-width: 480px) {
+    .player-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🤾 Handball Statistik</h1>
+<div class="subtitle">Spieler verwalten und Tore, Fehlwürfe, technische Fehler & Abwehrfehler live erfassen</div>
+
+<div class="card">
+  <h2>Spieler hinzufügen</h2>
+  <div class="add-row">
+    <input type="number" id="newNumber" placeholder="Nr." min="1" max="99">
+    <input type="text" id="newName" placeholder="Name des Spielers" maxlength="30">
+    <button class="primary" id="addBtn">+ Hinzufügen</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Spieler & Statistik <span id="playerCount">(0/16)</span></h2>
+  <div id="playerGrid" class="player-grid"></div>
+  <div id="emptyHint" class="empty-hint">Noch keine Spieler erfasst. Füge oben deinen ersten Spieler hinzu.</div>
+</div>
+
+<div class="card">
+  <h2>Spielübersicht</h2>
+  <div id="summaryTableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nr.</th>
+          <th>Name</th>
+          <th class="num">Tore</th>
+          <th class="num">Fehlwürfe</th>
+          <th class="num">Techn. Fehler</th>
+          <th class="num">Abwehrfehler</th>
+        </tr>
+      </thead>
+      <tbody id="summaryBody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">Gesamt</td>
+          <td class="num" id="totalTore">0</td>
+          <td class="num" id="totalFehl">0</td>
+          <td class="num" id="totalTech">0</td>
+          <td class="num" id="totalAbwehr">0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="footer-actions">
+    <button class="ghost" id="exportBtn">📋 Als Text kopieren</button>
+    <button class="danger" id="resetBtn">Spiel zurücksetzen</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'handball-stats-v1';
+  const MAX_PLAYERS = 16;
+
+  /** @type {{id:string, number:string, name:string, tore:number, fehlwurf:number, technisch:number, abwehr:number}[]} */
+  let players = [];
+  let editingId = null;
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        players = JSON.parse(raw);
+        players.forEach(p => { if (typeof p.abwehr !== 'number') p.abwehr = 0; });
+      }
+    } catch (e) {
+      console.error('Konnte Daten nicht laden', e);
+      players = [];
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+    } catch (e) {
+      console.error('Konnte Daten nicht speichern', e);
+    }
+  }
+
+  function uid() {
+    return Math.random().toString(36).slice(2, 10);
+  }
+
+  function addPlayer(number, name) {
+    if (players.length >= MAX_PLAYERS) return;
+    if (!name.trim()) return;
+    players.push({
+      id: uid(),
+      number: number ? String(number) : '',
+      name: name.trim(),
+      tore: 0,
+      fehlwurf: 0,
+      technisch: 0,
+      abwehr: 0
+    });
+    save();
+    render();
+  }
+
+  function removePlayer(id) {
+    const p = players.find(p => p.id === id);
+    if (p && !confirm(`Spieler "${p.name}" wirklich entfernen?`)) return;
+    players = players.filter(p => p.id !== id);
+    if (editingId === id) editingId = null;
+    save();
+    render();
+  }
+
+  function startEdit(id) {
+    editingId = id;
+    render();
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    render();
+  }
+
+  function saveEdit(id) {
+    const numInput = document.getElementById(`edit-num-${id}`);
+    const nameInput = document.getElementById(`edit-name-${id}`);
+    const name = nameInput.value.trim();
+    if (!name) {
+      alert('Bitte einen Namen eingeben.');
+      return;
+    }
+    const p = players.find(p => p.id === id);
+    if (!p) return;
+    p.name = name;
+    p.number = numInput.value ? String(numInput.value) : '';
+    editingId = null;
+    save();
+    render();
+  }
+
+  function changeStat(id, key, delta) {
+    const p = players.find(p => p.id === id);
+    if (!p) return;
+    p[key] = Math.max(0, (p[key] || 0) + delta);
+    save();
+    render();
+  }
+
+  function resetGame() {
+    if (!confirm('Alle Statistikwerte für dieses Spiel zurücksetzen? Die Spielerliste bleibt erhalten.')) return;
+    players.forEach(p => { p.tore = 0; p.fehlwurf = 0; p.technisch = 0; p.abwehr = 0; });
+    save();
+    render();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function statRow(label, value, id, key, cssClass) {
+    return `
+      <div class="stat-row ${cssClass}">
+        <span class="stat-label">${label}</span>
+        <div class="stat-controls">
+          <button class="stat-btn" onclick="HB.changeStat('${id}', '${key}', -1)" ${value === 0 ? 'disabled' : ''}>−</button>
+          <span class="stat-value">${value}</span>
+          <button class="stat-btn" onclick="HB.changeStat('${id}', '${key}', 1)">+</button>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    const grid = document.getElementById('playerGrid');
+    const emptyHint = document.getElementById('emptyHint');
+    const countLabel = document.getElementById('playerCount');
+    const addBtn = document.getElementById('addBtn');
+
+    countLabel.textContent = `(${players.length}/${MAX_PLAYERS})`;
+    addBtn.disabled = players.length >= MAX_PLAYERS;
+
+    if (players.length === 0) {
+      grid.innerHTML = '';
+      emptyHint.style.display = 'block';
+    } else {
+      emptyHint.style.display = 'none';
+      grid.innerHTML = players.map(p => `
+        <div class="player-card">
+          <div class="player-head">
+            ${p.id === editingId ? `
+              <div class="edit-row">
+                <input type="number" id="edit-num-${p.id}" value="${escapeHtml(p.number)}" placeholder="Nr." min="1" max="99">
+                <input type="text" id="edit-name-${p.id}" value="${escapeHtml(p.name)}" placeholder="Name" maxlength="30" onkeydown="if(event.key==='Enter'){HB.saveEdit('${p.id}')} if(event.key==='Escape'){HB.cancelEdit()}">
+              </div>
+              <div class="edit-actions">
+                <button title="Speichern" onclick="HB.saveEdit('${p.id}')">✓</button>
+                <button class="ghost" title="Abbrechen" onclick="HB.cancelEdit()">✕</button>
+              </div>
+            ` : `
+              <div class="player-number">${escapeHtml(p.number || '-')}</div>
+              <div class="player-name">${escapeHtml(p.name)}</div>
+              <button class="edit-btn" title="Spieler bearbeiten" onclick="HB.startEdit('${p.id}')">✎</button>
+              <button class="remove-btn" title="Spieler entfernen" onclick="HB.removePlayer('${p.id}')">✕</button>
+            `}
+          </div>
+          ${statRow('Tore', p.tore, p.id, 'tore', 'stat-tore')}
+          ${statRow('Fehlwürfe', p.fehlwurf, p.id, 'fehlwurf', 'stat-fehlwurf')}
+          ${statRow('Technische Fehler', p.technisch, p.id, 'technisch', 'stat-technisch')}
+          ${statRow('Abwehrfehler', p.abwehr, p.id, 'abwehr', 'stat-abwehr')}
+        </div>
+      `).join('');
+    }
+
+    // Summary table
+    const body = document.getElementById('summaryBody');
+    if (players.length === 0) {
+      body.innerHTML = `<tr><td colspan="6" style="color:var(--text-dim); text-align:center;">Keine Spieler</td></tr>`;
+    } else {
+      body.innerHTML = players.map(p => `
+        <tr>
+          <td>${escapeHtml(p.number || '-')}</td>
+          <td>${escapeHtml(p.name)}</td>
+          <td class="num">${p.tore}</td>
+          <td class="num">${p.fehlwurf}</td>
+          <td class="num">${p.technisch}</td>
+          <td class="num">${p.abwehr}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('totalTore').textContent = players.reduce((s, p) => s + p.tore, 0);
+    document.getElementById('totalFehl').textContent = players.reduce((s, p) => s + p.fehlwurf, 0);
+    document.getElementById('totalTech').textContent = players.reduce((s, p) => s + p.technisch, 0);
+    document.getElementById('totalAbwehr').textContent = players.reduce((s, p) => s + p.abwehr, 0);
+  }
+
+  function exportText() {
+    if (players.length === 0) {
+      alert('Keine Spieler zum Exportieren vorhanden.');
+      return;
+    }
+    let lines = ['Handball Statistik', '', 'Nr | Name | Tore | Fehlwürfe | Techn. Fehler | Abwehrfehler'];
+    players.forEach(p => {
+      lines.push(`${p.number || '-'} | ${p.name} | ${p.tore} | ${p.fehlwurf} | ${p.technisch} | ${p.abwehr}`);
+    });
+    const totalTore = players.reduce((s, p) => s + p.tore, 0);
+    const totalFehl = players.reduce((s, p) => s + p.fehlwurf, 0);
+    const totalTech = players.reduce((s, p) => s + p.technisch, 0);
+    const totalAbwehr = players.reduce((s, p) => s + p.abwehr, 0);
+    lines.push('', `Gesamt | | ${totalTore} | ${totalFehl} | ${totalTech} | ${totalAbwehr}`);
+    const text = lines.join('\n');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Statistik wurde in die Zwischenablage kopiert.');
+      }).catch(() => {
+        prompt('Kopieren fehlgeschlagen. Manuell kopieren:', text);
+      });
+    } else {
+      prompt('Statistik (manuell kopieren):', text);
+    }
+  }
+
+  // Event wiring
+  document.getElementById('addBtn').addEventListener('click', () => {
+    const numInput = document.getElementById('newNumber');
+    const nameInput = document.getElementById('newName');
+    addPlayer(numInput.value, nameInput.value);
+    numInput.value = '';
+    nameInput.value = '';
+    nameInput.focus();
+  });
+
+  document.getElementById('newName').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('addBtn').click();
+  });
+  document.getElementById('newNumber').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('addBtn').click();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', resetGame);
+  document.getElementById('exportBtn').addEventListener('click', exportText);
+
+  // Expose for inline onclick handlers
+  window.HB = { removePlayer, changeStat, startEdit, cancelEdit, saveEdit };
+
+  load();
+  render();
+})();
+</script>
+
+</body>
+</html>
