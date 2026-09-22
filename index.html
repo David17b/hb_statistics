@@ -106,44 +106,50 @@
     letter-spacing: normal;
   }
 
-  .player-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 12px;
+  .table-wrap {
+    overflow-x: auto;
   }
-  .player-card {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
+  table.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
   }
-  .player-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
+  table.stats-table th, table.stats-table td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
   }
+  table.stats-table th {
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+  }
+  table.stats-table th.num, table.stats-table td.num { text-align: center; }
+  table.stats-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
+  table.stats-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
   .player-number {
     background: var(--accent);
     color: #1a1004;
     font-weight: 700;
-    font-size: 0.85rem;
-    min-width: 28px;
-    height: 28px;
+    font-size: 0.8rem;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
   }
-  .player-name {
+  .player-name-cell {
     font-weight: 600;
-    flex: 1;
-    font-size: 0.95rem;
+    max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
+
   .remove-btn, .edit-btn {
     background: transparent;
     color: var(--text-dim);
@@ -155,10 +161,14 @@
   .remove-btn:hover { color: var(--danger); background: transparent; }
   .edit-btn:hover { color: var(--accent); background: transparent; }
 
+  .row-actions {
+    display: flex;
+    gap: 2px;
+  }
+
   .edit-row {
     display: flex;
     gap: 6px;
-    flex: 1;
   }
   .edit-row input {
     background: var(--panel);
@@ -168,51 +178,39 @@
     padding: 6px 8px;
     font-size: 0.9rem;
   }
-  .edit-row input[type="text"] { flex: 1; min-width: 0; }
-  .edit-row input[type="number"] { width: 60px; }
+  .edit-row input[type="text"] { width: 130px; }
+  .edit-row input[type="number"] { width: 56px; }
   .edit-actions {
     display: flex;
     gap: 4px;
-    flex-shrink: 0;
   }
   .edit-actions button {
     padding: 6px 8px;
     font-size: 0.9rem;
   }
 
-  .stat-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-top: 1px solid var(--border);
-  }
-  .stat-row:first-of-type { border-top: none; }
-  .stat-label {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-  }
   .stat-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
   }
   .stat-btn {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     border-radius: 6px;
     padding: 0;
-    font-size: 1rem;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   .stat-value {
-    min-width: 24px;
+    min-width: 20px;
     text-align: center;
     font-variant-numeric: tabular-nums;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
   .stat-tore .stat-value { color: var(--accent-2); }
   .stat-fehlwurf .stat-value { color: var(--warn); }
@@ -226,31 +224,13 @@
     padding: 20px 0;
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-  }
-  th, td {
-    text-align: left;
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--border);
-  }
-  th { color: var(--text-dim); font-weight: 600; }
-  td.num, th.num { text-align: center; }
-  tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
-
   .footer-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 6px;
-  }
-
-  @media (max-width: 480px) {
-    .player-grid { grid-template-columns: 1fr; }
+    margin-top: 12px;
   }
 </style>
 </head>
@@ -270,14 +250,8 @@
 
 <div class="card">
   <h2>Spieler & Statistik <span id="playerCount">(0/16)</span></h2>
-  <div id="playerGrid" class="player-grid"></div>
-  <div id="emptyHint" class="empty-hint">Noch keine Spieler erfasst. Füge oben deinen ersten Spieler hinzu.</div>
-</div>
-
-<div class="card">
-  <h2>Spielübersicht</h2>
-  <div id="summaryTableWrap">
-    <table>
+  <div class="table-wrap">
+    <table class="stats-table">
       <thead>
         <tr>
           <th>Nr.</th>
@@ -286,9 +260,10 @@
           <th class="num">Fehlwürfe</th>
           <th class="num">Techn. Fehler</th>
           <th class="num">Abwehrfehler</th>
+          <th class="num">Aktionen</th>
         </tr>
       </thead>
-      <tbody id="summaryBody"></tbody>
+      <tbody id="playerBody"></tbody>
       <tfoot>
         <tr>
           <td colspan="2">Gesamt</td>
@@ -296,10 +271,12 @@
           <td class="num" id="totalFehl">0</td>
           <td class="num" id="totalTech">0</td>
           <td class="num" id="totalAbwehr">0</td>
+          <td></td>
         </tr>
       </tfoot>
     </table>
   </div>
+  <div id="emptyHint" class="empty-hint">Noch keine Spieler erfasst. Füge oben deinen ersten Spieler hinzu.</div>
   <div class="footer-actions">
     <button class="ghost" id="exportBtn">📋 Als Text kopieren</button>
     <button class="danger" id="resetBtn">Spiel zurücksetzen</button>
@@ -413,20 +390,19 @@
     return div.innerHTML;
   }
 
-  function statRow(label, value, id, key, cssClass) {
+  function statCell(value, id, key, cssClass) {
     return `
-      <div class="stat-row ${cssClass}">
-        <span class="stat-label">${label}</span>
+      <td class="num ${cssClass}">
         <div class="stat-controls">
           <button class="stat-btn" onclick="HB.changeStat('${id}', '${key}', -1)" ${value === 0 ? 'disabled' : ''}>−</button>
           <span class="stat-value">${value}</span>
           <button class="stat-btn" onclick="HB.changeStat('${id}', '${key}', 1)">+</button>
         </div>
-      </div>`;
+      </td>`;
   }
 
   function render() {
-    const grid = document.getElementById('playerGrid');
+    const body = document.getElementById('playerBody');
     const emptyHint = document.getElementById('emptyHint');
     const countLabel = document.getElementById('playerCount');
     const addBtn = document.getElementById('addBtn');
@@ -435,52 +411,48 @@
     addBtn.disabled = players.length >= MAX_PLAYERS;
 
     if (players.length === 0) {
-      grid.innerHTML = '';
+      body.innerHTML = '';
       emptyHint.style.display = 'block';
     } else {
       emptyHint.style.display = 'none';
-      grid.innerHTML = players.map(p => `
-        <div class="player-card">
-          <div class="player-head">
-            ${p.id === editingId ? `
-              <div class="edit-row">
-                <input type="number" id="edit-num-${p.id}" value="${escapeHtml(p.number)}" placeholder="Nr." min="1" max="99">
-                <input type="text" id="edit-name-${p.id}" value="${escapeHtml(p.name)}" placeholder="Name" maxlength="30" onkeydown="if(event.key==='Enter'){HB.saveEdit('${p.id}')} if(event.key==='Escape'){HB.cancelEdit()}">
+      body.innerHTML = players.map(p => {
+        if (p.id === editingId) {
+          return `
+            <tr>
+              <td colspan="2">
+                <div class="edit-row">
+                  <input type="number" id="edit-num-${p.id}" value="${escapeHtml(p.number)}" placeholder="Nr." min="1" max="99">
+                  <input type="text" id="edit-name-${p.id}" value="${escapeHtml(p.name)}" placeholder="Name" maxlength="30" onkeydown="if(event.key==='Enter'){HB.saveEdit('${p.id}')} if(event.key==='Escape'){HB.cancelEdit()}">
+                </div>
+              </td>
+              ${statCell(p.tore, p.id, 'tore', 'stat-tore')}
+              ${statCell(p.fehlwurf, p.id, 'fehlwurf', 'stat-fehlwurf')}
+              ${statCell(p.technisch, p.id, 'technisch', 'stat-technisch')}
+              ${statCell(p.abwehr, p.id, 'abwehr', 'stat-abwehr')}
+              <td class="num">
+                <div class="edit-actions">
+                  <button title="Speichern" onclick="HB.saveEdit('${p.id}')">✓</button>
+                  <button class="ghost" title="Abbrechen" onclick="HB.cancelEdit()">✕</button>
+                </div>
+              </td>
+            </tr>`;
+        }
+        return `
+          <tr>
+            <td><span class="player-number">${escapeHtml(p.number || '-')}</span></td>
+            <td class="player-name-cell">${escapeHtml(p.name)}</td>
+            ${statCell(p.tore, p.id, 'tore', 'stat-tore')}
+            ${statCell(p.fehlwurf, p.id, 'fehlwurf', 'stat-fehlwurf')}
+            ${statCell(p.technisch, p.id, 'technisch', 'stat-technisch')}
+            ${statCell(p.abwehr, p.id, 'abwehr', 'stat-abwehr')}
+            <td class="num">
+              <div class="row-actions">
+                <button class="edit-btn" title="Spieler bearbeiten" onclick="HB.startEdit('${p.id}')">✎</button>
+                <button class="remove-btn" title="Spieler entfernen" onclick="HB.removePlayer('${p.id}')">✕</button>
               </div>
-              <div class="edit-actions">
-                <button title="Speichern" onclick="HB.saveEdit('${p.id}')">✓</button>
-                <button class="ghost" title="Abbrechen" onclick="HB.cancelEdit()">✕</button>
-              </div>
-            ` : `
-              <div class="player-number">${escapeHtml(p.number || '-')}</div>
-              <div class="player-name">${escapeHtml(p.name)}</div>
-              <button class="edit-btn" title="Spieler bearbeiten" onclick="HB.startEdit('${p.id}')">✎</button>
-              <button class="remove-btn" title="Spieler entfernen" onclick="HB.removePlayer('${p.id}')">✕</button>
-            `}
-          </div>
-          ${statRow('Tore', p.tore, p.id, 'tore', 'stat-tore')}
-          ${statRow('Fehlwürfe', p.fehlwurf, p.id, 'fehlwurf', 'stat-fehlwurf')}
-          ${statRow('Technische Fehler', p.technisch, p.id, 'technisch', 'stat-technisch')}
-          ${statRow('Abwehrfehler', p.abwehr, p.id, 'abwehr', 'stat-abwehr')}
-        </div>
-      `).join('');
-    }
-
-    // Summary table
-    const body = document.getElementById('summaryBody');
-    if (players.length === 0) {
-      body.innerHTML = `<tr><td colspan="6" style="color:var(--text-dim); text-align:center;">Keine Spieler</td></tr>`;
-    } else {
-      body.innerHTML = players.map(p => `
-        <tr>
-          <td>${escapeHtml(p.number || '-')}</td>
-          <td>${escapeHtml(p.name)}</td>
-          <td class="num">${p.tore}</td>
-          <td class="num">${p.fehlwurf}</td>
-          <td class="num">${p.technisch}</td>
-          <td class="num">${p.abwehr}</td>
-        </tr>
-      `).join('');
+            </td>
+          </tr>`;
+      }).join('');
     }
 
     document.getElementById('totalTore').textContent = players.reduce((s, p) => s + p.tore, 0);
