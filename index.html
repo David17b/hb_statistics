@@ -25,6 +25,7 @@
     background: var(--bg);
     color: var(--text);
     padding: 16px;
+    font-size: 21px;
   }
   h1 {
     font-size: 1.4rem;
@@ -32,6 +33,14 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  #fullscreenBtn {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  body:fullscreen {
+    overflow-y: auto;
+    padding: 16px;
   }
   .subtitle {
     color: var(--text-dim);
@@ -135,9 +144,9 @@
     background: var(--accent);
     color: #1a1004;
     font-weight: 700;
-    font-size: 0.8rem;
-    width: 26px;
-    height: 26px;
+    font-size: 0.85rem;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
@@ -196,26 +205,45 @@
     gap: 6px;
   }
   .stat-btn {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     border-radius: 6px;
     padding: 0;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   .stat-value {
-    min-width: 20px;
+    min-width: 22px;
     text-align: center;
     font-variant-numeric: tabular-nums;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
   }
   .stat-tore .stat-value { color: var(--accent-2); }
   .stat-fehlwurf .stat-value { color: var(--warn); }
   .stat-technisch .stat-value { color: var(--danger); }
   .stat-abwehr .stat-value { color: #38bdf8; }
+
+  .drag-handle-cell {
+    width: 30px;
+  }
+  .drag-handle {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    color: var(--text-dim);
+    font-size: 1.15rem;
+    display: inline-block;
+    padding: 4px 6px;
+    line-height: 1;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  table.stats-table tbody tr.dragging { opacity: 0.4; }
+  table.stats-table tbody tr.drag-over-top { box-shadow: inset 0 2px 0 0 var(--accent); }
+  table.stats-table tbody tr.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--accent); }
 
   .empty-hint {
     color: var(--text-dim);
@@ -232,12 +260,14 @@
     gap: 8px;
     margin-top: 12px;
   }
+  .footer-actions-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 </style>
 </head>
 <body>
-
-<h1>🤾 Handball Statistik</h1>
-<div class="subtitle">Spieler verwalten und Tore, Fehlwürfe, technische Fehler & Abwehrfehler live erfassen</div>
 
 <div class="card">
   <h2>Spieler hinzufügen</h2>
@@ -254,6 +284,7 @@
     <table class="stats-table">
       <thead>
         <tr>
+          <th></th>
           <th>Nr.</th>
           <th>Name</th>
           <th class="num">Tore</th>
@@ -266,7 +297,7 @@
       <tbody id="playerBody"></tbody>
       <tfoot>
         <tr>
-          <td colspan="2">Gesamt</td>
+          <td colspan="3">Gesamt</td>
           <td class="num" id="totalTore">0</td>
           <td class="num" id="totalFehl">0</td>
           <td class="num" id="totalTech">0</td>
@@ -278,7 +309,13 @@
   </div>
   <div id="emptyHint" class="empty-hint">Noch keine Spieler erfasst. Füge oben deinen ersten Spieler hinzu.</div>
   <div class="footer-actions">
-    <button class="ghost" id="exportBtn">📋 Als Text kopieren</button>
+    <div class="footer-actions-group">
+      <button class="ghost" id="exportBtn">📋 Als Text kopieren</button>
+      <button class="ghost" id="exportFileBtn">💾 Als Datei speichern</button>
+      <button class="ghost" id="importBtn">📂 Datei laden</button>
+      <input type="file" id="importInput" accept=".json,application/json" style="display:none">
+      <button class="ghost" id="fullscreenBtn" title="Vollbild umschalten">⛶ Vollbild</button>
+    </div>
     <button class="danger" id="resetBtn">Spiel zurücksetzen</button>
   </div>
 </div>
@@ -418,7 +455,8 @@
       body.innerHTML = players.map(p => {
         if (p.id === editingId) {
           return `
-            <tr>
+            <tr data-id="${p.id}">
+              <td></td>
               <td colspan="2">
                 <div class="edit-row">
                   <input type="number" id="edit-num-${p.id}" value="${escapeHtml(p.number)}" placeholder="Nr." min="1" max="99">
@@ -438,7 +476,8 @@
             </tr>`;
         }
         return `
-          <tr>
+          <tr data-id="${p.id}">
+            <td class="drag-handle-cell"><span class="drag-handle" title="Ziehen zum Sortieren">⠿</span></td>
             <td><span class="player-number">${escapeHtml(p.number || '-')}</span></td>
             <td class="player-name-cell">${escapeHtml(p.name)}</td>
             ${statCell(p.tore, p.id, 'tore', 'stat-tore')}
@@ -488,6 +527,72 @@
     }
   }
 
+  async function exportFile() {
+    if (players.length === 0) {
+      alert('Keine Spieler zum Speichern vorhanden.');
+      return;
+    }
+    const payload = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), players }, null, 2);
+    const filename = `handball-statistik-${new Date().toISOString().slice(0, 10)}.json`;
+
+    if (!window.claude || typeof window.claude.use !== 'function') {
+      alert('Datei-Export wird in dieser Ansicht nicht unterstützt.');
+      return;
+    }
+    try {
+      const downloads = await window.claude.use('downloads');
+      if (!downloads) {
+        alert('Datei-Export ist in dieser Ansicht nicht verfügbar.');
+        return;
+      }
+      await downloads.save({ filename, data: payload });
+    } catch (err) {
+      if (err && err.code === 'declined') return;
+      console.error('Export fehlgeschlagen', err);
+      alert('Export fehlgeschlagen: ' + (err && err.message ? err.message : 'Unbekannter Fehler'));
+    }
+  }
+
+  function handleImportFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        const incoming = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.players) ? parsed.players : null);
+        if (!incoming) throw new Error('Die Datei enthält keine erkennbare Spielerliste.');
+        const num = (v) => {
+          const n = Math.floor(Number(v));
+          return Number.isFinite(n) && n >= 0 ? n : 0;
+        };
+        const cleaned = incoming
+          .slice(0, MAX_PLAYERS)
+          .map(p => ({
+            id: uid(),
+            number: p && p.number ? String(p.number) : '',
+            name: p && typeof p.name === 'string' ? p.name.trim() : '',
+            tore: num(p && p.tore),
+            fehlwurf: num(p && p.fehlwurf),
+            technisch: num(p && p.technisch),
+            abwehr: num(p && p.abwehr)
+          }))
+          .filter(p => p.name);
+        if (cleaned.length === 0) throw new Error('Keine gültigen Spieler in der Datei gefunden.');
+        if (!confirm(`${cleaned.length} Spieler aus der Datei laden? Die aktuelle Liste wird ersetzt.`)) return;
+        players = cleaned;
+        editingId = null;
+        save();
+        render();
+      } catch (err) {
+        alert('Die Datei konnte nicht gelesen werden: ' + (err && err.message ? err.message : 'Ungültiges Format'));
+      }
+    };
+    reader.onerror = () => alert('Die Datei konnte nicht gelesen werden.');
+    reader.readAsText(file);
+  }
+
   // Event wiring
   document.getElementById('addBtn').addEventListener('click', () => {
     const numInput = document.getElementById('newNumber');
@@ -507,9 +612,83 @@
 
   document.getElementById('resetBtn').addEventListener('click', resetGame);
   document.getElementById('exportBtn').addEventListener('click', exportText);
+  document.getElementById('exportFileBtn').addEventListener('click', exportFile);
+  document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importInput').click());
+  document.getElementById('importInput').addEventListener('change', handleImportFile);
+
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  function updateFullscreenBtn() {
+    fullscreenBtn.textContent = document.fullscreenElement ? '⛶ Vollbild beenden' : '⛶ Vollbild';
+  }
+  fullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {
+        alert('Vollbild wird von diesem Browser oder in diesem Kontext nicht unterstützt.');
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  });
+  document.addEventListener('fullscreenchange', updateFullscreenBtn);
+  if (!document.fullscreenEnabled) {
+    fullscreenBtn.style.display = 'none';
+  }
 
   // Expose for inline onclick handlers
   window.HB = { removePlayer, changeStat, startEdit, cancelEdit, saveEdit };
+
+  // Drag & Drop zum Umsortieren
+  const playerBody = document.getElementById('playerBody');
+  let dragSourceId = null;
+
+  playerBody.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    const row = handle.closest('tr');
+    if (!row || !row.dataset.id) return;
+    dragSourceId = row.dataset.id;
+    row.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!dragSourceId) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const targetRow = el ? el.closest('tr[data-id]') : null;
+    playerBody.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+    if (!targetRow || targetRow.dataset.id === dragSourceId) return;
+    const rect = targetRow.getBoundingClientRect();
+    const isAfter = e.clientY > rect.top + rect.height / 2;
+    targetRow.classList.add(isAfter ? 'drag-over-bottom' : 'drag-over-top');
+  });
+
+  function endDrag() {
+    if (!dragSourceId) return;
+    const sourceId = dragSourceId;
+    dragSourceId = null;
+    const markedTop = playerBody.querySelector('.drag-over-top');
+    const markedBottom = playerBody.querySelector('.drag-over-bottom');
+    const targetRow = markedTop || markedBottom;
+    playerBody.querySelectorAll('.dragging, .drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom'));
+    if (!targetRow) return;
+    const targetId = targetRow.dataset.id;
+    if (targetId === sourceId) return;
+    const fromIndex = players.findIndex(p => p.id === sourceId);
+    let toIndex = players.findIndex(p => p.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    if (markedBottom) toIndex += 1;
+    const [moved] = players.splice(fromIndex, 1);
+    if (toIndex > fromIndex) toIndex -= 1;
+    players.splice(toIndex, 0, moved);
+    save();
+    render();
+  }
+
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', () => {
+    dragSourceId = null;
+    playerBody.querySelectorAll('.dragging, .drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom'));
+  });
 
   load();
   render();
